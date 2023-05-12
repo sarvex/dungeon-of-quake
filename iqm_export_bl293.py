@@ -77,7 +77,7 @@ class Vertex:
         self.weights.sort(key = lambda weight: weight[0], reverse=True)
         if len(self.weights) > 4: 
             del self.weights[4:]
-        totalweight = sum([ weight for (weight, bone) in self.weights])
+        totalweight = sum(weight for (weight, bone) in self.weights)
         if totalweight > 0:
             self.weights = [ (int(round(weight * 255.0 / totalweight)), bone) for (weight, bone) in self.weights]
             while len(self.weights) > 1 and self.weights[-1][0] <= 0:
@@ -85,7 +85,7 @@ class Vertex:
         else:
             totalweight = len(self.weights)
             self.weights = [ (int(round(255.0 / totalweight)), bone) for (weight, bone) in self.weights]
-        totalweight = sum([ weight for (weight, bone) in self.weights])
+        totalweight = sum(weight for (weight, bone) in self.weights)
         while totalweight != 255:
             for i, (weight, bone) in enumerate(self.weights):
                 if totalweight > 255 and weight > 0:
@@ -124,7 +124,7 @@ class Mesh:
     def __init__(self, name, material, verts):
         self.name      = name
         self.material  = material
-        self.verts     = [ None for v in verts ]
+        self.verts = [None for _ in verts]
         self.vertmap   = {}
         self.tris      = []
    
@@ -149,13 +149,10 @@ class Mesh:
             v0.bitangent += bitangent
             v1.bitangent += bitangent
             v2.bitangent += bitangent
-        for v in self.verts:    
+        for v in self.verts:
             v.tangent = v.tangent - v.normal*v.tangent.dot(v.normal)
             v.tangent.normalize()
-            if v.normal.cross(v.tangent).dot(v.bitangent) < 0:
-                v.bitangent = -1.0
-            else:
-                v.bitangent = 1.0
+            v.bitangent = -1.0 if v.normal.cross(v.tangent).dot(v.bitangent) < 0 else 1.0
         
     def optimize(self):
         # Linear-speed vertex cache optimization algorithm by Tom Forsyth
@@ -246,10 +243,7 @@ class Bone:
         self.channelscales = [ -1.0e10, -1.0e10, -1.0e10, -1.0e10, -1.0e10, -1.0e10, -1.0e10, -1.0e10, -1.0e10, -1.0e10 ]
 
     def jointData(self, iqm):
-        if self.parent:
-            parent = self.parent.index
-        else:
-            parent = -1
+        parent = self.parent.index if self.parent else -1
         pos = self.localmatrix.to_translation()
         orient = self.localmatrix.to_quaternion()
         orient.normalize()
@@ -262,10 +256,7 @@ class Bone:
         return [ iqm.addText(self.name), parent, pos.x, pos.y, pos.z, orient.x, orient.y, orient.z, orient.w, scale.x, scale.y, scale.z ]
  
     def poseData(self, iqm):
-        if self.parent:
-            parent = self.parent.index
-        else:
-            parent = -1
+        parent = self.parent.index if self.parent else -1
         return [ parent, self.channelmask ] + self.channeloffsets + self.channelscales
 
     def calcChannelMask(self):
@@ -394,13 +385,11 @@ class Animation:
         return IQM_BOUNDS.pack(bbmin.x, bbmin.y, bbmin.z, bbmax.x, bbmax.y, bbmax.z, xyradius, radius)
  
     def boundsData(self, bones, meshes):
-        invbase = []
-        for bone in bones:
-            invbase.append(bone.matrix.inverted())
+        invbase = [bone.matrix.inverted() for bone in bones]
         data = b''
         for i, frame in enumerate(self.frames):
             print('Calculating bounding box for %s:%d' % (self.name, i))
-            data += self.frameBoundsData(bones, meshes, frame, invbase)     
+            data += self.frameBoundsData(bones, meshes, frame, invbase)
         return data
    
  
@@ -645,11 +634,10 @@ class IQMFile:
 
 
 def findArmature(context):
-    armature = None
-    for obj in context.selected_objects:
-        if obj.type == 'ARMATURE':
-            armature = obj
-            break
+    armature = next(
+        (obj for obj in context.selected_objects if obj.type == 'ARMATURE'),
+        None,
+    )
     if not armature:
         for obj in context.selected_objects:
             if obj.type == 'MESH':
@@ -797,7 +785,7 @@ def collectAnims(context, armature, scale, bones, animspecs):
         animspec = [ arg.strip() for arg in animspec.split(':') ]
         animname = animspec[0]
         if animname not in actions:
-            print('Action "%s" not found in current armature' % animname)
+            print(f'Action "{animname}" not found in current armature')
             continue
         try:
             startframe = int(animspec[1])
